@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GuardIA — Demo pública del motor de guardias</title>
+<meta name="description" content="Demo funcional del motor de asignación de guardias de GuardIA. Configura, genera y exporta calendarios de guardias respetando reglas, descansos y equidad."/>
+<meta name="theme-color" content="#0f1117"/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+
+<!-- Open Graph -->
+<meta property="og:title" content="GuardIA — Demo pública"/>
+<meta property="og:description" content="Prueba el motor de asignación automática de guardias de GuardIA."/>
+<meta property="og:image" content="https://miguardia.es/og-image.png"/>
+<meta property="og:url" content="https://miguardia.es/demo"/>
+<meta property="og:type" content="website"/>
+<meta property="og:locale" content="es_ES"/>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#0f1117;color:#e8eaf0;min-height:100vh}
+select,input,textarea{color-scheme:dark}
+select option{background:#1a1f2e;color:#e8eaf0}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:rgba(255,255,255,0.03)}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px}
+
+/* Banner demo pública */
+.demo-banner{
+  position:sticky;top:0;z-index:1000;
+  background:linear-gradient(135deg,#4A90D9,#22A6B3);
+  color:white;padding:10px 16px;
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  font-size:13px;font-weight:500;text-align:center;flex-wrap:wrap;
+}
+.demo-banner strong{font-weight:700}
+.demo-banner a{
+  color:white;text-decoration:underline;font-weight:600;white-space:nowrap;
+}
+.demo-banner a:hover{opacity:.85}
+.demo-banner .close{
+  background:rgba(255,255,255,0.18);
+  border:none;border-radius:6px;
+  color:white;cursor:pointer;
+  padding:3px 9px;font-size:14px;line-height:1;
+  margin-left:8px;
+}
+.demo-banner .close:hover{background:rgba(255,255,255,0.28)}
+
+/* Footer demo */
+.demo-footer{
+  border-top:1px solid rgba(255,255,255,0.06);
+  padding:24px 16px;text-align:center;
+  color:#4a5568;font-size:12px;margin-top:40px;
+}
+.demo-footer a{color:#8a96b0;text-decoration:none}
+.demo-footer a:hover{color:#e8eaf0}
+.demo-footer .footer-logo{
+  font-family:'DM Serif Display',serif;font-size:18px;color:#e8eaf0;
+  margin-bottom:6px;display:inline-block;
+}
+.demo-footer .footer-logo span{color:#4A90D9}
+</style>
+</head>
+<body>
+
+<!-- BANNER -->
+<div class="demo-banner" id="demoBanner">
+  🚀 Estás probando la <strong>demo pública</strong> de GuardIA.
+  La versión completa con cuentas, grupos y app móvil llega esta primavera.
+  <a href="/#waitlist">Apúntate a la beta →</a>
+  <button class="close" onclick="document.getElementById('demoBanner').style.display='none'" title="Cerrar">×</button>
+</div>
+
+<div id="root"></div>
+
+<!-- FOOTER -->
+<div class="demo-footer">
+  <p class="footer-logo"><strong>Guard</strong><span>IA</span></p>
+  <p>Demo pública del motor de asignación de guardias.</p>
+  <p style="margin-top:8px;">
+    <a href="/">← Volver a la landing</a> · 
+    <a href="/#waitlist">Apúntate a la beta</a> · 
+    <a href="mailto:aarongyga@gmail.com">aarongyga@gmail.com</a>
+  </p>
+  <p style="margin-top:10px;font-size:11px;color:#2d3748;">
+    GuardIA® es marca registrada en la OEPM (España). © 2026
+  </p>
+</div>
+
+<script type="text/babel">
+const DOC_COLORS=['#FF6B6B','#FF9F43','#F9CA24','#6AB04C','#22A6B3','#4A90D9','#9B59B6','#E056C1','#48C9B0','#F0932B','#6C5CE7','#00B894'];
+const DOC_COLORS_X=['FF6B6B','FF9F43','F9CA24','6AB04C','22A6B3','4A90D9','9B59B6','E056C1','48C9B0','F0932B','6C5CE7','00B894'];
+const MONTH_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DAY_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const DAY_FULL=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const SUPERADMIN={user:'admin',pass:'guardia2026'};
+const pad=n=>String(n).padStart(2,'0');
+const daysInMonth=(m,y)=>new Date(y,m,0).getDate();
+const weekOf=(y,m,di)=>Math.floor((new Date(y,m-1,di+1)-new Date(y,0,1))/86400000/7);
+
+function buildDays(year){
+  const days=[];
+  for(let m=1;m<=12;m++){
+    const total=daysInMonth(m,year);
+    for(let d=1;d<=total;d++){
+      const dow=new Date(year,m-1,d).getDay();
+      days.push({date:d,month:m,year,dow,isWe:dow===0||dow===6,absIdx:days.length});
+    }
+  }
+  return days;
+}
+function weekOfAbs(absIdx){return Math.floor(absIdx/7);}
+
+function runAssign(days,indicesToAssign,assignment,guardCount,weekendCount,lastGuard,weekGuard,doctors,rules,warnings){
+  const n=doctors.length;
+  const RELAX_LABELS=['bloqueado_ignorado','descanso_ignorado','semana_ignorada','maximo_ignorado'];
+  const docOrder=Array.from({length:n},(_,i)=>i);
+  function scoreAt(di,ai,relax){
+    const doc=doctors[di],d=days[ai];
+    if(relax<1&&rules.respectBlocked&&doc.blocked.includes(d.date)&&doc.blockedMonths&&doc.blockedMonths.includes(d.month))return Infinity;
+    const rest=ai-lastGuard[di];
+    if(relax<2&&rest<rules.minRest)return Infinity;
+    const wk=weekOfAbs(ai);
+    if(relax<3&&weekGuard[`${di}_${wk}`])return Infinity;
+    if(relax<4&&guardCount[di]>=rules.maxYear)return Infinity;
+    let s=guardCount[di]*10;
+    if(rules.priorityWe&&d.isWe)s-=weekendCount[di]*5;
+    s-=rest*0.3;
+    return s;
+  }
+  for(const ai of indicesToAssign){
+    for(let relax=0;relax<=4;relax++){
+      const sorted=[...docOrder].sort((a,b)=>{
+        const sa=scoreAt(a,ai,relax),sb=scoreAt(b,ai,relax);
+        if(sa===Infinity&&sb===Infinity)return 0;
+        if(sa===Infinity)return 1;if(sb===Infinity)return-1;
+        return sa-sb;
+      });
+      const chosen=sorted[0];
+      if(scoreAt(chosen,ai,relax)!==Infinity){
+        assignment[ai]=chosen;
+        guardCount[chosen]++;
+        if(days[ai].isWe)weekendCount[chosen]++;
+        lastGuard[chosen]=ai;
+        weekGuard[`${chosen}_${weekOfAbs(ai)}`]=true;
+        if(relax>0)warnings[ai]=RELAX_LABELS[relax-1];
+        break;
+      }
+    }
+  }
+}
+
+function generateAnnualSchedule(doctors,year,rules){
+  const n=doctors.length;
+  const days=buildDays(year);
+  const total=days.length;
+  const assignment=new Array(total).fill(null);
+  const guardCount=new Array(n).fill(0);
+  const weekendCount=new Array(n).fill(0);
+  const lastGuard=new Array(n).fill(-999);
+  const weekGuard={};
+  const warnings={};
+  const weDays=days.map((_,i)=>i).filter(i=>days[i].isWe);
+  const wdDays=days.map((_,i)=>i).filter(i=>!days[i].isWe);
+  const ordered=rules.priorityWe?[...weDays,...wdDays]:[...weDays,...wdDays].sort((a,b)=>a-b);
+  runAssign(days,ordered,assignment,guardCount,weekendCount,lastGuard,weekGuard,doctors,rules,warnings);
+  return{assignment,guardCount,weekendCount,days,total,warnings,year};
+}
+
+function regenerateMonth(result,targetMonth,lockedIndices,doctors,rules){
+  const{days,assignment,guardCount,weekendCount,warnings}=result;
+  const n=doctors.length;
+  const newAssignment=[...assignment];
+  const newWarnings={...warnings};
+  const gc=new Array(n).fill(0);
+  const wc=new Array(n).fill(0);
+  const lastGuard=new Array(n).fill(-999);
+  const weekGuard={};
+  days.forEach((d,ai)=>{
+    const di=newAssignment[ai];
+    if(di==null)return;
+    const isTargetMonth=d.month===targetMonth;
+    const isLocked=lockedIndices.has(ai);
+    if(!isTargetMonth||isLocked){
+      gc[di]++;
+      if(d.isWe)wc[di]++;
+      if(ai>lastGuard[di])lastGuard[di]=ai;
+      weekGuard[`${di}_${weekOfAbs(ai)}`]=true;
+    }
+  });
+  const freeDays=days.map((_,ai)=>ai).filter(ai=>days[ai].month===targetMonth&&!lockedIndices.has(ai));
+  freeDays.forEach(ai=>{
+    const old=newAssignment[ai];
+    if(old!=null){newAssignment[ai]=null;delete newWarnings[ai];}
+  });
+  const weFree=freeDays.filter(ai=>days[ai].isWe);
+  const wdFree=freeDays.filter(ai=>!days[ai].isWe);
+  const ordered=rules.priorityWe?[...weFree,...wdFree]:[...weFree,...wdFree].sort((a,b)=>a-b);
+  runAssign(days,ordered,newAssignment,gc,wc,lastGuard,weekGuard,doctors,rules,newWarnings);
+  const finalGc=new Array(n).fill(0),finalWc=new Array(n).fill(0);
+  newAssignment.forEach((di,ai)=>{if(di!=null){finalGc[di]++;if(days[ai].isWe)finalWc[di]++;}});
+  return{...result,assignment:newAssignment,guardCount:finalGc,weekendCount:finalWc,warnings:newWarnings};
+}
+
+function exportAnnualExcel(docs,year,result,rules){
+  const{assignment,guardCount,weekendCount,days}=result;
+  const wb=XLSX.utils.book_new();
+  const hdr=(bg)=>({font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:11},fill:{fgColor:{rgb:bg||'1A3A5C'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:{style:'medium',color:{rgb:'555555'}},bottom:{style:'medium',color:{rgb:'555555'}},left:{style:'medium',color:{rgb:'555555'}},right:{style:'medium',color:{rgb:'555555'}}}});
+  const cellS=(bg,bold,color)=>({font:{bold:!!bold,color:{rgb:color||'333333'},name:'Arial',sz:10},fill:{fgColor:{rgb:bg||'FFFFFF'}},alignment:{horizontal:'center',vertical:'center'},border:{top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}}});
+  for(let m=1;m<=12;m++){
+    const MN=MONTH_NAMES[m-1];
+    const mDays=days.filter(d=>d.month===m);
+    const ws={};
+    ws['A1']={v:`${MN.toUpperCase()} ${year} — GUARDIA`,t:'s',s:{font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:12},fill:{fgColor:{rgb:'0D2137'}},alignment:{horizontal:'center',vertical:'center'}}};
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];
+    const firstDow=new Date(year,m-1,1).getDay();
+    DAY_SHORT.forEach((d,c)=>{ws[XLSX.utils.encode_cell({r:1,c})]={v:d,t:'s',s:{font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:11},fill:{fgColor:{rgb:c===0||c===6?'8B2000':'1A3A5C'}},alignment:{horizontal:'center',vertical:'center'},border:{top:{style:'medium',color:{rgb:'555555'}},bottom:{style:'medium',color:{rgb:'555555'}},left:{style:'thin',color:{rgb:'888888'}},right:{style:'thin',color:{rgb:'888888'}}}}};});
+    let row=2,col=firstDow;
+    for(let e=0;e<firstDow;e++){ws[XLSX.utils.encode_cell({r:row,c:e})]={v:'',t:'s',s:{fill:{fgColor:{rgb:'131720'}}}};}
+    mDays.forEach(({date,isWe,absIdx})=>{
+      if(col>6){col=0;row++;}
+      const di=assignment[absIdx],doc=di!=null?docs[di]:null,docColor=di!=null?DOC_COLORS_X[di%12]:null;
+      ws[XLSX.utils.encode_cell({r:row,c:col})]={v:doc?`${date}\n${doc.name}`:String(date),t:'s',s:{font:{bold:!!doc,color:{rgb:docColor||'AAAAAA'},name:'Arial',sz:10},fill:{fgColor:{rgb:isWe?'FFE58F':(di!=null?'EBF4FF':'F0F0F0')}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}}}};
+      col++;
+    });
+    while(col<=6){ws[XLSX.utils.encode_cell({r:row,c:col})]={v:'',t:'s',s:{fill:{fgColor:{rgb:'131720'}}}};col++;}
+    ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row+1,c:7}});
+    ws['!cols']=[{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14}];
+    ws['!rows']=[{hpx:28},{hpx:22},...Array(row).fill({hpx:44})];
+    XLSX.utils.book_append_sheet(wb,ws,MN);
+  }
+  const ws4={};
+  ws4['A1']={v:`RESUMEN ANUAL ${year} — GUARDIA`,t:'s',s:{font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:13},fill:{fgColor:{rgb:'0D2137'}},alignment:{horizontal:'center',vertical:'center'}}};
+  ws4['!merges']=[{s:{r:0,c:0},e:{r:0,c:14}}];
+  const sumHdrs=['MÉDICO',...MONTH_NAMES.map(m=>m.slice(0,3)),'TOTAL','FIN SEM.'];
+  sumHdrs.forEach((h,c)=>{ws4[XLSX.utils.encode_cell({r:1,c})]={v:h,t:'s',s:hdr(c===0?'0D2137':c<=12?'1A3A5C':c===13?'1a5c1a':'5c3a00')};});
+  docs.forEach((doc,di)=>{
+    const r=di+2,bg=di%2===0?'F5F9FF':'FFFFFF';
+    ws4[XLSX.utils.encode_cell({r,c:0})]={v:doc.name,t:'s',s:cellS(bg,true,DOC_COLORS_X[di%12])};
+    for(let m=1;m<=12;m++){
+      const cnt=days.filter(d=>d.month===m&&assignment[d.absIdx]===di).length;
+      ws4[XLSX.utils.encode_cell({r,c:m})]={v:cnt,t:'n',s:cellS(bg,false,'333333')};
+    }
+    ws4[XLSX.utils.encode_cell({r,c:13})]={v:guardCount[di],t:'n',s:cellS('D5F5E3',true,'1a5c1a')};
+    ws4[XLSX.utils.encode_cell({r,c:14})]={v:weekendCount[di],t:'n',s:cellS('FEF9E7',true,'5c3a00')};
+  });
+  ws4['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:docs.length+2,c:14}});
+  ws4['!cols']=[{wch:20},...Array(12).fill({wch:6}),{wch:8},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws4,'Resumen Anual');
+  XLSX.writeFile(wb,`Guardia_${year}.xlsx`,{bookType:'xlsx',type:'binary',cellStyles:true});
+}
+
+function Toggle({on,onChange}){
+  return <button onClick={()=>onChange(!on)} style={{width:40,height:22,borderRadius:11,border:'none',cursor:'pointer',background:on?'#22A6B3':'rgba(255,255,255,0.1)',position:'relative',flexShrink:0,transition:'background .2s'}}>
+    <span style={{position:'absolute',top:3,left:on?21:3,width:16,height:16,borderRadius:'50%',background:'white',transition:'left .2s',display:'block'}}/>
+  </button>;
+}
+
+function MiniCal({docIdx,doctor,month,year,maxBlk,maxPref,onChange}){
+  const total=daysInMonth(month,year),firstDow=new Date(year,month-1,1).getDay();
+  function toggleDay(day){
+    const isBlk=doctor.blocked.includes(day),isPref=doctor.preferred.includes(day);
+    let nb=[...doctor.blocked],np=[...doctor.preferred];
+    if(!isBlk&&!isPref){if(nb.length>=maxBlk)return;nb.push(day);}
+    else if(isBlk){nb=nb.filter(x=>x!==day);if(np.length>=maxPref)return;np.push(day);}
+    else{np=np.filter(x=>x!==day);}
+    onChange(docIdx,{...doctor,blocked:nb,preferred:np});
+  }
+  return <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2}}>
+    {DAY_SHORT.map(d=><div key={'h'+d} style={{fontSize:8,textAlign:'center',color:'#4a5568',padding:'2px 0',fontWeight:600}}>{d}</div>)}
+    {Array.from({length:firstDow}).map((_,e)=><div key={'e'+e}/>)}
+    {Array.from({length:total},(_,i)=>{
+      const day=i+1,dow=new Date(year,month-1,day).getDay(),isWe=dow===0||dow===6;
+      const isBlk=doctor.blocked.includes(day),isPref=doctor.preferred.includes(day);
+      return <div key={day} onClick={()=>toggleDay(day)} style={{fontSize:10,textAlign:'center',padding:'3px 1px',borderRadius:3,cursor:'pointer',userSelect:'none',background:isBlk?'rgba(239,68,68,0.25)':isPref?'rgba(34,197,94,0.2)':isWe?'rgba(255,255,255,0.04)':'transparent',color:isBlk?'#f87171':isPref?'#4ade80':isWe?'#4a5568':'#64748b',border:isBlk?'1px solid rgba(239,68,68,0.4)':isPref?'1px solid rgba(34,197,94,0.4)':'1px solid transparent',fontWeight:isBlk||isPref?700:400}}>{day}</div>;
+    })}
+  </div>;
+}
+
+const S={
+  inp:{width:'100%',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,color:'#e8eaf0',padding:'9px 12px',fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:'none'},
+  card:{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:20,marginBottom:14},
+  secTitle:{fontSize:11,fontWeight:600,letterSpacing:2,textTransform:'uppercase',color:'#4A90D9',marginBottom:14},
+  btnPrimary:{padding:'12px 24px',background:'linear-gradient(135deg,#4A90D9,#22A6B3)',border:'none',borderRadius:10,color:'white',fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:600,cursor:'pointer'},
+  btnSec:{padding:'10px 18px',background:'transparent',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,color:'#a0aec0',fontFamily:"'DM Sans',sans-serif",fontSize:13,cursor:'pointer'},
+  btnGreen:{padding:'11px 22px',background:'linear-gradient(135deg,#1a7a3a,#22a355)',border:'none',borderRadius:10,color:'white',fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:600,cursor:'pointer'},
+};
+
+function DemoApp(){
+  const [year,setYear]=React.useState(2026);
+  const [viewMonth,setViewMonth]=React.useState(new Date().getMonth()+1);
+  const [nDoc,setNDoc]=React.useState(8);
+  const [maxBlk,setMaxBlk]=React.useState(5);
+  const [maxPref,setMaxPref]=React.useState(5);
+  const [doctors,setDoctors]=React.useState(Array.from({length:12},(_,i)=>({name:`Médico ${i+1}`,blocked:[],preferred:[]})));
+  const [rules,setRules]=React.useState({minRest:6,maxYear:60,respectBlocked:true,usePreferred:true,priorityWe:true});
+  const [result,setResult]=React.useState(null);
+  const [tab,setTab]=React.useState('config');
+  const [view,setView]=React.useState('grid');
+  const docs=doctors.slice(0,nDoc);
+  const firstDow=new Date(year,viewMonth-1,1).getDay();
+
+  function updateDoctor(idx,val){setDoctors(prev=>prev.map((d,i)=>i===idx?val:d));}
+  function updateName(idx,name){setDoctors(prev=>prev.map((d,i)=>i===idx?{...d,name}:d));}
+
+  function handleGenerate(){
+    const autoMaxYear=Math.ceil(365/nDoc)+2;
+    const r=generateAnnualSchedule(docs,year,{...rules,maxYear:autoMaxYear});
+    setRules(prev=>({...prev,maxYear:autoMaxYear}));
+    setResult(r);setTab('result');setView('grid');
+  }
+
+  function handleRegenMonth(){
+    if(!result)return;
+    const updated=regenerateMonth(result,viewMonth,new Set(),docs,rules);
+    setResult(updated);
+  }
+
+  function handleExport(){
+    if(!result)return;
+    exportAnnualExcel(docs,year,result,rules);
+  }
+
+  const monthDays=result?result.days.map((d,ai)=>({...d,ai})).filter(d=>d.month===viewMonth):[];
+  const TABS=[{id:'config',label:'⚙️ Config'},{id:'availability',label:'📅 Disponibilidad'},{id:'rules',label:'📋 Reglas'},...(result?[{id:'result',label:'📊 Calendario'},{id:'annual',label:'🗓 Anual'}]:[])];
+  const lbl={display:'block',fontSize:11,color:'#4a5568',marginBottom:6,fontWeight:600,textTransform:'uppercase'};
+
+  return <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#0f1117,#1a1f2e)',paddingBottom:60}}>
+    <div style={{textAlign:'center',padding:'32px 24px 16px'}}>
+      <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(74,144,217,0.12)',border:'1px solid rgba(74,144,217,0.25)',borderRadius:20,padding:'5px 14px',fontSize:12,color:'#4A90D9',letterSpacing:1,textTransform:'uppercase',fontWeight:600,marginBottom:12}}>🩺 Motor de asignación de guardias</div>
+      <h1 style={{fontFamily:"'DM Serif Display',serif",fontSize:'clamp(22px,4vw,36px)',color:'#fff',letterSpacing:-1,marginBottom:8}}><strong>Guard</strong><span style={{color:'#4A90D9'}}>IA</span> — Demo</h1>
+      <p style={{color:'#4a5568',fontSize:13}}>Configura tu equipo, marca disponibilidad, genera y exporta a Excel.</p>
+    </div>
+    <div style={{display:'flex',borderBottom:'1px solid rgba(255,255,255,0.06)',padding:'0 16px',maxWidth:960,margin:'0 auto',overflowX:'auto'}}>
+      {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'10px 14px',border:'none',background:'transparent',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontSize:13,color:tab===t.id?'#e8eaf0':'#4a5568',borderBottom:tab===t.id?'2px solid #4A90D9':'2px solid transparent',marginBottom:-1,fontWeight:tab===t.id?600:400,whiteSpace:'nowrap'}}>{t.label}</button>)}
+    </div>
+    <div style={{maxWidth:960,margin:'0 auto',padding:'24px 16px'}}>
+
+      {tab==='config'&&<div>
+        <p style={S.secTitle}>Configuración inicial</p>
+        <div style={S.card}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:14}}>
+            <div><label style={lbl}>Año</label><select value={year} onChange={e=>setYear(+e.target.value)} style={S.inp}>{[2025,2026,2027,2028].map(y=><option key={y} value={y}>{y}</option>)}</select></div>
+            <div><label style={lbl}>Nº médicos</label><input type="number" value={nDoc} min={2} max={12} onChange={e=>setNDoc(Math.min(12,Math.max(2,+e.target.value)))} style={S.inp}/></div>
+            <div><label style={lbl}>Máx. bloqueos</label><input type="number" value={maxBlk} min={0} max={20} onChange={e=>setMaxBlk(+e.target.value)} style={S.inp}/></div>
+            <div><label style={lbl}>Máx. preferencias</label><input type="number" value={maxPref} min={0} max={20} onChange={e=>setMaxPref(+e.target.value)} style={S.inp}/></div>
+          </div>
+          <div style={{background:'rgba(74,144,217,0.06)',border:'1px solid rgba(74,144,217,0.15)',borderRadius:8,padding:'12px 14px',fontSize:12,color:'#4A90D9',marginTop:14}}>
+            📅 Calendario anual <strong>{year}</strong> · {nDoc} médicos · ~{Math.floor(365/nDoc)}–{Math.ceil(365/nDoc)} guardias/médico
+          </div>
+        </div>
+        <button style={S.btnPrimary} onClick={()=>setTab('availability')}>Siguiente: disponibilidad →</button>
+      </div>}
+
+      {tab==='availability'&&<div>
+        <p style={S.secTitle}>Disponibilidad — {MONTH_NAMES[viewMonth-1]} {year}</p>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+          <button style={{...S.btnSec,padding:'6px 10px'}} onClick={()=>setViewMonth(m=>Math.max(1,m-1))}>←</button>
+          <select value={viewMonth} onChange={e=>setViewMonth(+e.target.value)} style={{...S.inp,width:'auto',padding:'6px 10px'}}>
+            {MONTH_NAMES.map((m,i)=><option key={i} value={i+1}>{m} {year}</option>)}
+          </select>
+          <button style={{...S.btnSec,padding:'6px 10px'}} onClick={()=>setViewMonth(m=>Math.min(12,m+1))}>→</button>
+        </div>
+        <p style={{fontSize:12,color:'#4a5568',marginBottom:14}}>Clic → 🔴 bloqueado · 🟢 preferido · libre</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:10,marginBottom:16}}>
+          {docs.map((doc,i)=><div key={i} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+              <div style={{width:32,height:32,borderRadius:'50%',background:DOC_COLORS[i%12],display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'white',flexShrink:0}}>{doc.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+              <input value={doc.name} onChange={e=>updateName(i,e.target.value)} style={{background:'transparent',border:'none',borderBottom:'1px solid rgba(255,255,255,0.08)',outline:'none',fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:'#e8eaf0',width:'100%',padding:'2px 0'}}/>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#4a5568',marginBottom:8}}><span>🔴 {doc.blocked.length}/{maxBlk}</span><span>🟢 {doc.preferred.length}/{maxPref}</span></div>
+            <MiniCal docIdx={i} doctor={doc} month={viewMonth} year={year} maxBlk={maxBlk} maxPref={maxPref} onChange={updateDoctor}/>
+          </div>)}
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button style={S.btnSec} onClick={()=>setTab('config')}>← Atrás</button>
+          <button style={S.btnPrimary} onClick={()=>setTab('rules')}>Siguiente: reglas →</button>
+        </div>
+      </div>}
+
+      {tab==='rules'&&<div>
+        <p style={S.secTitle}>Reglas de asignación</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:10,marginBottom:20}}>
+          <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:14}}>
+            <label style={lbl}>Descanso mínimo (días)</label>
+            <input type="number" value={rules.minRest} min={1} max={14} onChange={e=>setRules(r=>({...r,minRest:+e.target.value}))} style={S.inp}/>
+          </div>
+          {[{label:'Respetar bloqueados',key:'respectBlocked'},{label:'Priorizar preferidos',key:'usePreferred'},{label:'Equidad fines de semana',key:'priorityWe'}].map(({label,key})=>
+            <div key={key} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:14,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+              <span style={{fontSize:12,color:'#718096'}}>{label}</span><Toggle on={rules[key]} onChange={v=>setRules(r=>({...r,[key]:v}))}/>
+            </div>
+          )}
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button style={S.btnSec} onClick={()=>setTab('availability')}>← Atrás</button>
+          <button style={{...S.btnPrimary,flex:1}} onClick={handleGenerate}>⚡ Generar calendario {year} completo</button>
+        </div>
+      </div>}
+
+      {tab==='result'&&result&&(()=>{
+        const{assignment,guardCount,weekendCount,warnings={}}=result;
+        const maxG=Math.max(...guardCount);
+        return <div>
+          <div style={{...S.card,padding:'14px 18px',marginBottom:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10,marginBottom:10}}>
+              <p style={{...S.secTitle,margin:0}}>Resumen anual {year}</p>
+              <button style={{...S.btnGreen,padding:'8px 14px',fontSize:12}} onClick={handleExport}>📥 Descargar Excel</button>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))',gap:8}}>
+              {docs.map((doc,i)=><div key={i} style={{textAlign:'center',background:'rgba(255,255,255,0.03)',borderRadius:8,padding:'8px 4px'}}>
+                <div style={{width:28,height:28,borderRadius:'50%',background:DOC_COLORS[i%12],margin:'0 auto 4px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:'white'}}>{guardCount[i]}</div>
+                <div style={{fontSize:10,color:'#4a5568',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{doc.name}</div>
+                <div style={{fontSize:9,color:'#4a5568'}}>🏖 {weekendCount[i]}</div>
+                <div style={{height:2,borderRadius:1,background:'rgba(255,255,255,0.06)',marginTop:5,overflow:'hidden'}}><div style={{height:'100%',width:`${Math.round((guardCount[i]/(maxG||1))*100)}%`,background:DOC_COLORS[i%12]}}/></div>
+              </div>)}
+            </div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,flexWrap:'wrap'}}>
+            <button style={{...S.btnSec,padding:'6px 12px'}} onClick={()=>setViewMonth(m=>Math.max(1,m-1))}>←</button>
+            <select value={viewMonth} onChange={e=>setViewMonth(+e.target.value)} style={{...S.inp,width:'auto',padding:'7px 12px'}}>
+              {MONTH_NAMES.map((m,i)=><option key={i} value={i+1}>{m} {year}</option>)}
+            </select>
+            <button style={{...S.btnSec,padding:'6px 12px'}} onClick={()=>setViewMonth(m=>Math.min(12,m+1))}>→</button>
+            <button style={{...S.btnSec,padding:'6px 12px',fontSize:12,marginLeft:'auto'}} onClick={handleRegenMonth}>🔄 Regenerar mes</button>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:20}}>
+            {DAY_SHORT.map((d,i)=><div key={'h'+d} style={{fontSize:10,textAlign:'center',padding:'4px 0',fontWeight:600,textTransform:'uppercase',color:i===0||i===6?'#d4a000':'#4a5568'}}>{d}</div>)}
+            {Array.from({length:firstDow}).map((_,i)=><div key={'e'+i}/>)}
+            {monthDays.map(({date,isWe,ai})=>{
+              const di=assignment[ai],col=di!=null?DOC_COLORS[di%12]:null,name=di!=null?docs[di]?.name:'',short=name.split(' ').slice(-1)[0]||name;
+              const warn=warnings[ai];
+              return <div key={ai} style={{background:warn?'rgba(249,202,36,0.05)':isWe?'rgba(255,215,0,0.04)':'rgba(255,255,255,0.03)',border:`1px solid ${warn?'rgba(249,202,36,0.2)':isWe?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.06)'}`,borderRadius:8,padding:'5px 4px',minHeight:58}}>
+                <div style={{fontSize:10,color:isWe?'#8a6500':'#2d3748',fontWeight:700,marginBottom:3}}>{date}</div>
+                {di!=null?<div style={{background:col,borderRadius:5,padding:'2px 3px',fontSize:9,fontWeight:700,color:'white',textAlign:'center',wordBreak:'break-word',lineHeight:1.3}}>{short}</div>:<div style={{fontSize:10,color:'#1e2535',textAlign:'center',marginTop:4}}>—</div>}
+                {warn&&<div style={{fontSize:7,color:'#F9CA24',textAlign:'center'}}>⚠️</div>}
+              </div>;
+            })}
+          </div>
+        </div>;
+      })()}
+
+      {tab==='annual'&&result&&(()=>{
+        const{assignment,days,guardCount,weekendCount}=result;
+        const maxG=Math.max(...guardCount);
+        return <div>
+          <p style={S.secTitle}>Vista anual {year}</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:12,marginBottom:20}}>
+            {Array.from({length:12},(_,mi)=>{
+              const m=mi+1;
+              const mDays=days.filter(d=>d.month===m);
+              const firstDow=new Date(year,mi,1).getDay();
+              return <div key={m} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:10,cursor:'pointer'}} onClick={()=>{setViewMonth(m);setTab('result');}}>
+                <p style={{fontSize:12,fontWeight:600,color:'#e8eaf0',marginBottom:8,textAlign:'center'}}>{MONTH_NAMES[mi]}</p>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:1}}>
+                  {DAY_SHORT.map((d,i)=><div key={d} style={{fontSize:7,textAlign:'center',color:i===0||i===6?'#d4a000':'#2d3748',fontWeight:600,paddingBottom:2}}>{d}</div>)}
+                  {Array.from({length:firstDow}).map((_,i)=><div key={'e'+i}/>)}
+                  {mDays.map(({date,isWe,absIdx})=>{
+                    const di=assignment[absIdx];
+                    const col=di!=null?DOC_COLORS[di%12]:null;
+                    return <div key={date} style={{width:'100%',aspectRatio:'1',borderRadius:2,background:col||(isWe?'rgba(255,215,0,0.08)':'rgba(255,255,255,0.04)'),opacity:col?1:0.3,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:6,color:'white',fontWeight:700,lineHeight:1}}>{date}</span></div>;
+                  })}
+                </div>
+              </div>;
+            })}
+          </div>
+        </div>;
+      })()}
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<DemoApp/>);
+</script>
+</body>
+</html>

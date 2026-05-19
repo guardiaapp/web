@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GuardIA — Coordina las guardias de tu servicio sin caos</title>
+  <meta name="description" content="GuardIA es la herramienta moderna para coordinar guardias hospitalarias. Sin Excel, sin caos, sin grupos de WhatsApp infinitos. Apúntate a la beta." />
+  <meta name="theme-color" content="#0f1117" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- Open Graph (vista previa al compartir en LinkedIn, WhatsApp, etc.) -->
+  <meta property="og:title" content="GuardIA — Coordina las guardias de tu servicio sin caos" />
+  <meta property="og:description" content="La herramienta moderna que esperabas para coordinar guardias hospitalarias. Pruébala y apúntate a la beta." />
+  <meta property="og:image" content="https://miguardia.es/og-image.png" />
+  <meta property="og:url" content="https://miguardia.es" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_ES" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0f1117;
+      color: #e8eaf0;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* HEADER */
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(12px);
+      background: rgba(15, 17, 23, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto; padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px; letter-spacing: -0.5px;
+    }
+    .logo span { color: #4A90D9; }
+    .nav-cta {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #4A90D9, #22A6B3);
+      border-radius: 8px; font-size: 13px; font-weight: 600;
+      color: white;
+    }
+
+    /* HERO */
+    .hero {
+      max-width: 900px; margin: 0 auto;
+      padding: 80px 24px 60px; text-align: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(74, 144, 217, 0.12);
+      border: 1px solid rgba(74, 144, 217, 0.25);
+      border-radius: 20px; padding: 5px 14px;
+      font-size: 12px; color: #4A90D9; letter-spacing: 1px;
+      text-transform: uppercase; font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(34px, 6vw, 56px);
+      line-height: 1.1; letter-spacing: -1.5px;
+      color: #fff; margin-bottom: 20px;
+    }
+    .hero h1 em {
+      font-style: italic; color: #4A90D9;
+    }
+    .hero p {
+      font-size: clamp(16px, 2.2vw, 19px);
+      color: #a0aec0; max-width: 640px;
+      margin: 0 auto 36px;
+    }
+    .cta-row {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+    .btn-primary {
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #4A90D9, #22A6B3);
+      border-radius: 10px; font-size: 15px; font-weight: 600;
+      color: white; border: none; cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(74, 144, 217, 0.25); }
+    .btn-secondary {
+      padding: 14px 28px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px; font-size: 15px; font-weight: 500;
+      color: #e8eaf0; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.08); }
+
+    /* SECTIONS */
+    section { padding: 64px 24px; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .section-label {
+      font-size: 11px; color: #4A90D9;
+      letter-spacing: 2px; text-transform: uppercase;
+      font-weight: 600; margin-bottom: 14px; text-align: center;
+    }
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(26px, 4vw, 38px);
+      color: #fff; text-align: center;
+      max-width: 720px; margin: 0 auto 18px;
+      letter-spacing: -1px; line-height: 1.2;
+    }
+    .section-sub {
+      font-size: 16px; color: #a0aec0;
+      text-align: center; max-width: 640px;
+      margin: 0 auto 48px;
+    }
+
+    /* STORY */
+    .story {
+      background: linear-gradient(180deg, transparent, rgba(74, 144, 217, 0.03));
+    }
+    .story-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 20px; padding: 36px 32px;
+      max-width: 720px; margin: 0 auto; text-align: center;
+    }
+    .story-card p {
+      font-size: 17px; color: #c8d0e0;
+      line-height: 1.75; margin-bottom: 16px;
+    }
+    .story-card .signature {
+      font-size: 13px; color: #4a5568;
+      margin-top: 24px; font-style: italic;
+    }
+
+    /* FEATURES */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .feature {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px; padding: 24px;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature:hover {
+      border-color: rgba(74, 144, 217, 0.25);
+      transform: translateY(-2px);
+    }
+    .feature-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+    .feature h3 {
+      font-size: 16px; font-weight: 600; color: #e8eaf0;
+      margin-bottom: 8px;
+    }
+    .feature p { font-size: 13px; color: #8a96b0; line-height: 1.6; }
+
+    /* DEMO CTA */
+    .demo-cta {
+      background: linear-gradient(135deg, rgba(74, 144, 217, 0.08), rgba(34, 166, 179, 0.05));
+      border: 1px solid rgba(74, 144, 217, 0.2);
+      border-radius: 24px;
+      padding: 48px 32px; text-align: center;
+      max-width: 720px; margin: 0 auto;
+    }
+    .demo-cta h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(24px, 4vw, 34px);
+      color: #fff; margin-bottom: 14px; letter-spacing: -.5px;
+    }
+    .demo-cta p {
+      color: #a0aec0; margin-bottom: 28px;
+      max-width: 540px; margin-left: auto; margin-right: auto;
+    }
+
+    /* WAITLIST */
+    .waitlist-form {
+      max-width: 460px; margin: 0 auto;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px; padding: 28px;
+    }
+    .waitlist-form label {
+      display: block; font-size: 11px; color: #4a5568;
+      margin-bottom: 6px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .waitlist-form input, .waitlist-form select {
+      width: 100%; background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px; color: #e8eaf0; padding: 10px 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px;
+      outline: none; margin-bottom: 16px;
+      color-scheme: dark;
+    }
+    .waitlist-form input:focus, .waitlist-form select:focus {
+      border-color: rgba(74, 144, 217, 0.5);
+    }
+    .waitlist-form select option { background: #1a1f2e; }
+    .waitlist-form button {
+      width: 100%; padding: 12px;
+      background: linear-gradient(135deg, #4A90D9, #22A6B3);
+      border: none; border-radius: 10px; color: white;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: transform .15s;
+    }
+    .waitlist-form button:hover { transform: translateY(-1px); }
+    .waitlist-note {
+      font-size: 11px; color: #4a5568; text-align: center;
+      margin-top: 14px;
+    }
+    .waitlist-success {
+      display: none; background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 12px; padding: 20px; text-align: center;
+      color: #4ade80; font-size: 14px;
+    }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 32px 24px; text-align: center;
+      color: #4a5568; font-size: 13px;
+    }
+    footer a { color: #8a96b0; }
+    footer a:hover { color: #e8eaf0; }
+    .footer-links {
+      margin-top: 10px; display: flex; gap: 18px;
+      justify-content: center; flex-wrap: wrap;
+    }
+    .footer-legal {
+      margin-top: 14px; font-size: 11px; color: #2d3748;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="logo"><strong>Guard</strong><span>IA</span></a>
+      <a href="#waitlist" class="nav-cta">Apúntate</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <span class="badge">🩺 Beta privada · Primavera 2026</span>
+    <h1>Las guardias de tu servicio merecen <em>algo mejor</em> que un Excel.</h1>
+    <p>GuardIA es la herramienta moderna que esperabas para coordinar guardias hospitalarias. Sin caos, sin grupos de WhatsApp infinitos, sin perseguir a tu coordinador por el pasillo.</p>
+    <div class="cta-row">
+      <a href="/demo" class="btn-primary">Probar la demo →</a>
+      <a href="#waitlist" class="btn-secondary">Apúntate a la beta</a>
+    </div>
+  </header>
+
+  <!-- STORY -->
+  <section class="story">
+    <p class="section-label">Por qué existe GuardIA</p>
+    <h2 class="section-title">Esto empezó por una médica con poca paciencia para los Excels.</h2>
+    <div class="story-card">
+      <p>Mi pareja es médica. Cada mes, el mismo ritual: cuadros de guardias en Excel, cambios de última hora por WhatsApp, fines de semana mal repartidos.</p>
+      <p>Después de verla rehacer el calendario un domingo a las 11 de la noche, pensé que tenía que haber una forma mejor. <strong>GuardIA es esa herramienta.</strong></p>
+      <p class="signature">— Aarón Giner, fundador</p>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section>
+    <div class="container">
+      <p class="section-label">Qué hace GuardIA</p>
+      <h2 class="section-title">Coordinar guardias, sin el dolor.</h2>
+      <p class="section-sub">Una herramienta diseñada con médicos, para médicos. Móvil-first, sin formación previa.</p>
+
+      <div class="features-grid">
+        <div class="feature">
+          <span class="feature-icon">🤖</span>
+          <h3>Reparte las guardias por ti</h3>
+          <p>Marca preferencias y bloqueos. GuardIA reparte respetando descansos, equidad y fines de semana.</p>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">📱</span>
+          <h3>Tus guardias en el bolsillo</h3>
+          <p>Calendario que sincroniza con Google Calendar o Apple. Olvídate de imprimir el Excel.</p>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">🔄</span>
+          <h3>Cambios sin drama</h3>
+          <p>Pide un cambio, tu compañero acepta, el admin valida. Todo trazado, sin WhatsApp.</p>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">⚖️</span>
+          <h3>Equidad real, no improvisada</h3>
+          <p>Quién lleva cuántas guardias, cuántos findes, cuántos festivos. Datos, no impresiones.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEMO CTA -->
+  <section>
+    <div class="demo-cta">
+      <h2>Pruébalo ahora.</h2>
+      <p>Esta es una demo funcional del motor de asignación. Aún sin cuentas ni grupos — la versión completa con app móvil, cambios de guardia, notificaciones y todo lo demás llega esta primavera.</p>
+      <a href="/demo" class="btn-primary">Entrar en la demo →</a>
+    </div>
+  </section>
+
+  <!-- WAITLIST -->
+  <section id="waitlist">
+    <div class="container">
+      <p class="section-label">Apúntate a la beta</p>
+      <h2 class="section-title">Sé de los primeros en usar GuardIA.</h2>
+      <p class="section-sub">Cuando lancemos la versión completa, los de la waitlist entran primero, gratis durante toda la beta, y ayudan a darle forma al producto.</p>
+
+      <form class="waitlist-form" id="waitlistForm">
+        <label for="name">Nombre</label>
+        <input type="text" id="name" name="name" required placeholder="Tu nombre" />
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required placeholder="tu@email.com" />
+
+        <label for="specialty">Especialidad</label>
+        <input type="text" id="specialty" name="specialty" placeholder="Ej: Cardiología, MIR4, Urgencias..." />
+
+        <label for="hospital">Hospital (opcional)</label>
+        <input type="text" id="hospital" name="hospital" placeholder="Ej: Hospital Clínic, HSJD..." />
+
+        <button type="submit">Apúntame a la beta</button>
+      </form>
+
+      <div class="waitlist-success" id="waitlistSuccess">
+        ✅ <strong>¡Bienvenido!</strong> Te avisaremos en cuanto esté la beta lista.
+      </div>
+
+      <p class="waitlist-note">Sin spam. Te escribimos solo cuando esté lista.<br/>Tu email no se comparte con nadie.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p><strong>Guard<span style="color:#4A90D9">IA</span></strong> — Hecho con cariño en Barcelona por Aarón Giner</p>
+    <div class="footer-links">
+      <a href="mailto:aarongyga@gmail.com">aarongyga@gmail.com</a>
+      <a href="/demo">Demo pública</a>
+      <a href="#waitlist">Apúntate</a>
+    </div>
+    <p class="footer-legal">GuardIA® es marca registrada en la OEPM (España). © 2026 — Todos los derechos reservados.</p>
+  </footer>
+
+  <script>
+    // Formulario waitlist — placeholder (lo conectaremos a Formspark en Fase 5)
+    document.getElementById('waitlistForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      // De momento solo muestra mensaje de éxito.
+      // En la Fase 5 conectaremos esto a un servicio real que enviará los emails a aarongyga@gmail.com
+      document.getElementById('waitlistForm').style.display = 'none';
+      document.getElementById('waitlistSuccess').style.display = 'block';
+      // Scroll suave al mensaje
+      document.getElementById('waitlistSuccess').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  </script>
+</body>
+</html>
