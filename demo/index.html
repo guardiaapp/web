@@ -267,8 +267,12 @@ function MiniCal({docIdx,doctor,month,year,maxBlk,maxPref,onChange}){
   function toggleDay(day){
     const isBlk=doctor.blocked.includes(day),isPref=doctor.preferred.includes(day);
     let nb=[...doctor.blocked],np=[...doctor.preferred];
-    if(!isBlk&&!isPref){if(nb.length>=maxBlk)return;nb.push(day);}
-    else if(isBlk){nb=nb.filter(x=>x!==day);if(np.length>=maxPref)return;np.push(day);}
+    if(!isBlk&&!isPref){
+      if(nb.length<maxBlk)nb.push(day);
+      else if(np.length<maxPref)np.push(day);
+      else return;
+    }
+    else if(isBlk){nb=nb.filter(x=>x!==day);if(np.length<maxPref)np.push(day);}
     else{np=np.filter(x=>x!==day);}
     onChange(docIdx,{...doctor,blocked:nb,preferred:np});
   }
